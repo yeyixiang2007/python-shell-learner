@@ -1,9 +1,9 @@
 import sys
 import random
+import time
 from engine import GameEngine
-from data import LEVELS
-from utils import print_header, print_info, print_color, Colors, clear_screen, print_error, print_success
-from data import ACHIEVEMENTS
+from data import LEVELS, ACHIEVEMENTS
+from utils import print_header, print_info, print_color, Colors, clear_screen, print_error, print_success, get_key, pad_text, get_display_width
 
 def welcome():
     clear_screen()
@@ -44,7 +44,7 @@ def view_progress(engine):
     print_header("🏆 成就勋章墙 🏆")
     for ach in ACHIEVEMENTS:
         unlocked = ach.id in engine.unlocked_achievements
-        status = "⭐" if unlocked else "�"
+        status = "⭐" if unlocked else "❓"
         color = Colors.OKGREEN if unlocked else Colors.FAIL
         # 对已解锁的成就加粗显示
         text_format = color + Colors.BOLD if unlocked else color
@@ -57,10 +57,118 @@ def view_progress(engine):
         engine.clear_progress()
         input("\n按回车键返回...")
 
+def select_level_menu(engine):
+    all_level_ids = sorted(list(LEVELS.keys()))
+    if not all_level_ids:
+        print_error("没有可用的关卡！")
+        input("按回车键继续...")
+        return
+
+    # 找到当前最大解锁关卡（故事模式进度）
+    max_unlocked = engine.current_level
+    cursor_idx = 0
+    # 将光标初始化在当前进度关卡
+    if max_unlocked in all_level_ids:
+        cursor_idx = all_level_ids.index(max_unlocked)
+
+    while True:
+        clear_screen()
+        print_header("🎯 选择关卡 - 练习模式 🎯")
+        print_color("使用 [方向键] 移动，[Enter] 开始，[Esc/Q] 返回", Colors.OKCYAN)
+        print_color("说明: ⭐ 完美通关 | ✅ 已通关 | 🔒 未解锁\n", Colors.OKBLUE)
+
+        # 三栏布局逻辑
+        cols = 3
+        rows = (len(all_level_ids) + cols - 1) // cols
+
+        for r in range(rows):
+            line = ""
+            for c in range(cols):
+                idx = r + c * rows
+                if idx < len(all_level_ids):
+                    lvl_id = all_level_ids[idx]
+
+                    # 状态判定
+                    status_icon = "  "
+                    is_locked = lvl_id > max_unlocked
+                    if is_locked:
+                        status_icon = "🔒"
+                        color = Colors.GRAY # 灰色
+                    elif lvl_id in engine.perfect_level_ids:
+                        status_icon = "⭐"
+                        color = Colors.WARNING # 金色
+                    elif lvl_id < max_unlocked:
+                        status_icon = "✅"
+                        color = Colors.OKGREEN
+                    else:
+                        status_icon = "▶ " # 当前进度
+                        color = Colors.OKCYAN
+
+                    # 选中效果
+                    prefix = " > " if idx == cursor_idx else "   "
+                    suffix = " < " if idx == cursor_idx else "   "
+
+                    name = LEVELS[lvl_id]['name']
+                    # 截断过长的名称（中英混合）
+                    max_name_len = 10
+                    display_name = name
+                    if get_display_width(name) > max_name_len:
+                        # 逐字截断以防破坏编码
+                        display_name = ""
+                        curr_w = 0
+                        for char in name:
+                            char_w = 2 if get_display_width(char) == 2 else 1
+                            if curr_w + char_w > max_name_len - 2:
+                                display_name += ".."
+                                break
+                            display_name += char
+                            curr_w += char_w
+
+                    # 构建一个固定宽度的项
+                    name_padded = pad_text(display_name, max_name_len)
+                    item_content = f"{status_icon} Lvl {lvl_id:2}: {name_padded}"
+
+                    # 组合完整行项
+                    full_item = f"{prefix}{item_content}{suffix}"
+
+                    # 选中的项加粗并反色（可选）
+                    if idx == cursor_idx:
+                        line += f"{Colors.BOLD}{color}{full_item}{Colors.ENDC}"
+                    else:
+                        line += f"{color}{full_item}{Colors.ENDC}"
+
+                    # 栏间距
+                    line += "  "
+                else:
+                    line += " " * 32 # 占位
+            print(line)
+
+        # 处理按键
+        key = get_key()
+        if key == 'up':
+            if cursor_idx > 0: cursor_idx -= 1
+        elif key == 'down':
+            if cursor_idx < len(all_level_ids) - 1: cursor_idx += 1
+        elif key == 'left':
+            cursor_idx = max(0, cursor_idx - rows)
+        elif key == 'right':
+            cursor_idx = min(len(all_level_ids) - 1, cursor_idx + rows)
+        elif key == 'enter':
+            selected_id = all_level_ids[cursor_idx]
+            if selected_id > max_unlocked:
+                print_error(f"\n关卡 {selected_id} 尚未解锁！请先完成之前的挑战。")
+                time.sleep(1)
+            else:
+                engine.start_level(level_id=selected_id, mode='single')
+                # 重新同步进度（如果单关练习导致进度改变，虽然目前逻辑不会，但这样更稳健）
+                max_unlocked = engine.current_level
+        elif key in ['esc', 'q']:
+            break
+
 def main():
     try:
-        welcome()
         engine = GameEngine()
+        welcome()
 
         while True:
             print_menu()
@@ -72,19 +180,7 @@ def main():
                     engine.start_level(mode='story')
 
             elif choice == '2':
-                try:
-                    lvl_input = input("请输入关卡 ID (1-60): ").strip()
-                    if not lvl_input: continue
-                    lvl = int(lvl_input)
-                    if lvl in LEVELS:
-                        # 单关练习模式：不更改任何持久化进度
-                        engine.start_level(level_id=lvl, mode='single')
-                    else:
-                        print_error("无效的关卡 ID！")
-                        input("按回车键继续...")
-                except ValueError:
-                    print_error("请输入数字！")
-                    input("按回车键继续...")
+                select_level_menu(engine)
 
             elif choice == '3':
                 if not LEVELS:

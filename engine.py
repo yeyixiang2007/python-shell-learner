@@ -18,6 +18,7 @@ class GameEngine:
         self.challenges_completed = 0
         self.errors_in_current_level = 0
         self.perfect_levels_count = 0
+        self.perfect_level_ids = set() # 记录哪些关卡是完美通关的
         self._suspend_persistence = False
         self._snapshot = None
         self.load_progress()
@@ -34,6 +35,7 @@ class GameEngine:
                     self.challenges_completed = data.get("challenges_completed", 0)
                     self.hints_used = data.get("hints_used", 0)
                     self.perfect_levels_count = data.get("perfect_levels_count", 0)
+                    self.perfect_level_ids = set(data.get("perfect_level_ids", []))
         except Exception as e:
             print_error(f"加载进度失败: {e}")
 
@@ -48,7 +50,8 @@ class GameEngine:
                     "achievements": list(self.unlocked_achievements),
                     "challenges_completed": self.challenges_completed,
                     "hints_used": self.hints_used,
-                    "perfect_levels_count": self.perfect_levels_count
+                    "perfect_levels_count": self.perfect_levels_count,
+                    "perfect_level_ids": list(self.perfect_level_ids)
                 }, f)
         except Exception as e:
             print_error(f"保存进度失败: {e}")
@@ -588,7 +591,11 @@ class GameEngine:
 
         # Check for perfect level completion
         if self.errors_in_current_level == 0:
-            self.perfect_levels_count += 1
+            if not hasattr(self, 'perfect_level_ids'):
+                self.perfect_level_ids = set()
+            if self.current_level not in self.perfect_level_ids:
+                self.perfect_levels_count += 1
+                self.perfect_level_ids.add(self.current_level)
             self.check_achievement("perfect_level")
 
         # Check for level reach achievements
@@ -603,7 +610,7 @@ class GameEngine:
             else:
                 self.game_over()
         else:
-            input("\n按回车键返回菜单...")
+            input("\n按回车键返回选关列表...")
             self.is_running = False
 
     def game_over(self):
