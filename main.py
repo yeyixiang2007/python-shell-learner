@@ -110,7 +110,7 @@ def select_level_menu(engine):
 
                     name = LEVELS[lvl_id]['name']
                     # 截断过长的名称（中英混合）
-                    max_name_len = 10
+                    max_name_len = 15
                     display_name = name
                     if get_display_width(name) > max_name_len:
                         # 逐字截断以防破坏编码
