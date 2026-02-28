@@ -1,8 +1,10 @@
 import os
 import json
 import random
-from data import LEVELS, Challenge
-from utils import print_color, print_success, print_error, print_info, print_warning, print_hint, Colors, clear_screen
+import time
+
+from data import LEVELS, Challenge, ACHIEVEMENTS
+from utils import print_color, print_success, print_error, print_info, print_warning, print_hint, Colors, clear_screen, print_header
 
 class GameEngine:
     def __init__(self):
@@ -10,7 +12,13 @@ class GameEngine:
         self.current_challenge_index = 0
         self.score = 0
         self.is_running = True
+        self.consecutive_failures = 0
+        self.unlocked_achievements = set()
+        self.hints_used = 0
+        self.challenges_completed = 0
+        self.errors_in_current_level = 0
         self.load_progress()
+
 
     def load_progress(self):
         try:
@@ -19,19 +27,65 @@ class GameEngine:
                     data = json.load(f)
                     self.current_level = data.get("level", 1)
                     self.score = data.get("score", 0)
+                    self.unlocked_achievements = set(data.get("achievements", []))
+                    self.challenges_completed = data.get("challenges_completed", 0)
+                    self.hints_used = data.get("hints_used", 0)
         except Exception as e:
             print_error(f"加载进度失败: {e}")
 
     def save_progress(self):
         try:
             with open("progress.json", "w") as f:
-                json.dump({"level": self.current_level, "score": self.score}, f)
+                json.dump({
+                    "level": self.current_level,
+                    "score": self.score,
+                    "achievements": list(self.unlocked_achievements),
+                    "challenges_completed": self.challenges_completed,
+                    "hints_used": self.hints_used
+                }, f)
         except Exception as e:
             print_error(f"保存进度失败: {e}")
+
+    def check_achievement(self, condition_type, value=None):
+        for achievement in ACHIEVEMENTS:
+            if achievement.id in self.unlocked_achievements:
+                continue
+
+            unlocked = False
+            if achievement.condition == "complete_first_challenge" and condition_type == "complete_challenge" and self.challenges_completed >= 1:
+                unlocked = True
+            elif achievement.condition == "fail_5_times" and condition_type == "fail" and self.consecutive_failures >= 5:
+                unlocked = True
+            elif achievement.condition == "use_5_hints" and condition_type == "hint" and self.hints_used >= 5:
+                unlocked = True
+            elif achievement.condition == "score_50_time_attack" and condition_type == "time_attack_score" and value >= 50:
+                unlocked = True
+            elif achievement.condition == "score_100_time_attack" and condition_type == "time_attack_score" and value >= 100:
+                unlocked = True
+            elif achievement.condition == "total_score_100" and condition_type == "score" and self.score >= 100:
+                unlocked = True
+            elif achievement.condition == "total_score_500" and condition_type == "score" and self.score >= 500:
+                unlocked = True
+            elif achievement.condition == "reach_level_10" and condition_type == "level" and self.current_level >= 10:
+                unlocked = True
+            elif achievement.condition == "reach_level_20" and condition_type == "level" and self.current_level >= 20:
+                unlocked = True
+            elif achievement.condition == "perfect_level_completion" and condition_type == "perfect_level":
+                unlocked = True
+            elif achievement.condition == "complete_all_levels" and condition_type == "all_levels":
+                unlocked = True
+
+            if unlocked:
+                self.unlocked_achievements.add(achievement.id)
+                print_color(f"\n🏆 解锁成就: {achievement.name} - {achievement.description} 🏆", Colors.BOLD + Colors.OKGREEN)
+                self.save_progress()
 
     def clear_progress(self):
         self.current_level = 1
         self.score = 0
+        self.unlocked_achievements = set()
+        self.challenges_completed = 0
+        self.hints_used = 0
         self.save_progress()
         print_success("进度已清除！")
 
@@ -61,6 +115,7 @@ class GameEngine:
         clear_screen()
         print_color(f"--- 关卡 {self.current_level}: {level_data['name']} ---", Colors.HEADER + Colors.BOLD)
         self.current_challenge_index = 0
+        self.errors_in_current_level = 0 # Reset error count for the new level
         self.play_challenge()
 
     def play_challenge(self):
@@ -74,7 +129,20 @@ class GameEngine:
         print_color(f"当前路径: {challenge.initial_path}", Colors.UNDERLINE)
 
         attempts = 0
+        self.consecutive_failures = 0 # Reset for new challenge
+
         while True:
+            # Check for failure threshold
+            if self.consecutive_failures >= 5:
+                self.check_achievement("fail") # Check achievement
+                print_color("\n你已经连续错误 5 次了。", Colors.WARNING)
+                choice = input(f"{Colors.WARNING}是否直接显示答案？(y/n): {Colors.ENDC}").strip().lower()
+                if choice == 'y':
+                    print_info(f"参考答案: {challenge.expected_command[0]}")
+                    # Reset failure count so we don't ask again immediately if they type wrong again
+                    self.consecutive_failures = 0
+                    continue
+
             user_input = input(f"{Colors.OKGREEN}user@linux-game:{challenge.initial_path}$ {Colors.ENDC}").strip()
 
             if user_input.lower() in ['exit', 'quit']:
@@ -82,6 +150,8 @@ class GameEngine:
                 return
 
             if user_input.lower() == 'hint':
+                self.hints_used += 1
+                self.check_achievement("hint")
                 print_hint(challenge.hint)
                 continue
 
@@ -90,22 +160,78 @@ class GameEngine:
                 continue
 
             if user_input in challenge.expected_command:
+                self.consecutive_failures = 0
                 self.success(challenge)
                 break
             else:
                 attempts += 1
+                self.consecutive_failures += 1
                 self.handle_failure(user_input, attempts)
+
+    def start_time_attack(self, duration=60):
+        clear_screen()
+        print_header("⏱️ 限时挑战模式 ⏱️")
+        print_info(f"你有 {duration} 秒的时间尽可能多地完成挑战！")
+        input("按回车键开始...")
+
+        start_time = time.time()
+        score = 0
+        completed_count = 0
+
+        # Flatten all challenges
+        all_challenges = []
+        for lvl in LEVELS.values():
+            all_challenges.extend(lvl['challenges'])
+
+        while True:
+            elapsed = time.time() - start_time
+            remaining = duration - elapsed
+
+            if remaining <= 0:
+                break
+
+            challenge = random.choice(all_challenges)
+            print_color(f"\n[剩余时间: {int(remaining)}s] 挑战: {challenge.title}", Colors.BOLD)
+            print_color(challenge.description, Colors.OKBLUE)
+
+            # Simple input loop for time attack
+            user_input = input(f"{Colors.OKGREEN}user@linux-game:{challenge.initial_path}$ {Colors.ENDC}").strip()
+
+            # Re-check time after input (since input is blocking)
+            if time.time() - start_time > duration:
+                break
+
+            if user_input in challenge.expected_command:
+                print_success("正确！+10分")
+                score += 10
+                completed_count += 1
+            elif user_input.lower() in ['exit', 'quit']:
+                break
+            else:
+                print_error("错误！跳过此题...")
+
+        print_header("⏰ 时间到！ ⏰")
+        print_color(f"✨ 最终得分: {score} ✨", Colors.WARNING + Colors.BOLD)
+        print_color(f"🎯 完成挑战数: {completed_count}", Colors.OKCYAN)
+
+        self.check_achievement("time_attack_score", score)
+
+        input("\n按回车键返回主菜单...")
 
     def success(self, challenge: Challenge):
         print_success(challenge.success_msg)
         print_info(f"【知识点】{challenge.knowledge_point}")
         self.score += 10
         self.current_challenge_index += 1
+        self.challenges_completed += 1
+        self.check_achievement("complete_challenge")
+        self.check_achievement("score")
 
         input("\n按回车键继续...")
         self.play_challenge()
 
     def handle_failure(self, user_input: str, attempts: int):
+        self.errors_in_current_level += 1
         # 简单的命令模拟反馈
         if not user_input:
             return
@@ -409,6 +535,13 @@ class GameEngine:
     def finish_level(self):
         print_success(f"恭喜！你完成了关卡 {self.current_level}！")
 
+        # Check for perfect level completion
+        if self.errors_in_current_level == 0:
+            self.check_achievement("perfect_level")
+
+        # Check for level reach achievements
+        self.check_achievement("level")
+
         if self.mode == 'story':
             self.current_level += 1
             self.save_progress()
@@ -426,4 +559,8 @@ class GameEngine:
         print_color("🎉 恭喜你通关了所有关卡！ 🎉", Colors.HEADER + Colors.BOLD)
         print_info(f"最终得分: {self.score}")
         print_color("你已经掌握了 Linux 的基础操作，继续在真实环境中探索吧！", Colors.OKGREEN)
+
+        # Unlock Master Achievement
+        self.check_achievement("all_levels")
+
         self.is_running = False

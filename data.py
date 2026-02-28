@@ -13,6 +13,27 @@ class Challenge:
     initial_fs: Dict[str, Any]  # 模拟文件系统初始状态 (如: {"file1.txt": "content", "dir1": {}})
     initial_path: str = "/home/user"
 
+@dataclass
+class Achievement:
+    id: str
+    name: str
+    description: str
+    condition: str  # 描述触发条件，例如 "complete_level_1", "fail_5_times"
+
+ACHIEVEMENTS = [
+    Achievement("first_blood", "初出茅庐", "完成第一个挑战", "complete_first_challenge"),
+    Achievement("speed_runner", "速度之星", "在限时模式中获得超过 50 分", "score_50_time_attack"),
+    Achievement("time_attack_master", "限时大师", "在限时模式中获得超过 100 分", "score_100_time_attack"),
+    Achievement("persistent", "百折不挠", "连续错误 5 次", "fail_5_times"),
+    Achievement("master", "命令大师", "完成所有关卡", "complete_all_levels"),
+    Achievement("hint_user", "求知若渴", "累计使用 5 次提示", "use_5_hints"),
+    Achievement("score_100", "百分选手", "总得分达到 100 分", "total_score_100"),
+    Achievement("score_500", "五百达成", "总得分达到 500 分", "total_score_500"),
+    Achievement("level_10", "渐入佳境", "达到第 10 关", "reach_level_10"),
+    Achievement("level_20", "身经百战", "达到第 20 关", "reach_level_20"),
+    Achievement("perfect_level", "完美无瑕", "不犯错完成一个关卡", "perfect_level_completion")
+]
+
 # 关卡数据
 LEVELS = {
     1: {
