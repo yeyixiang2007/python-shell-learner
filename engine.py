@@ -17,6 +17,7 @@ class GameEngine:
         self.hints_used = 0
         self.challenges_completed = 0
         self.errors_in_current_level = 0
+        self.perfect_levels_count = 0
         self.load_progress()
 
 
@@ -30,6 +31,7 @@ class GameEngine:
                     self.unlocked_achievements = set(data.get("achievements", []))
                     self.challenges_completed = data.get("challenges_completed", 0)
                     self.hints_used = data.get("hints_used", 0)
+                    self.perfect_levels_count = data.get("perfect_levels_count", 0)
         except Exception as e:
             print_error(f"加载进度失败: {e}")
 
@@ -41,7 +43,8 @@ class GameEngine:
                     "score": self.score,
                     "achievements": list(self.unlocked_achievements),
                     "challenges_completed": self.challenges_completed,
-                    "hints_used": self.hints_used
+                    "hints_used": self.hints_used,
+                    "perfect_levels_count": self.perfect_levels_count
                 }, f)
         except Exception as e:
             print_error(f"保存进度失败: {e}")
@@ -58,19 +61,37 @@ class GameEngine:
                 unlocked = True
             elif achievement.condition == "use_5_hints" and condition_type == "hint" and self.hints_used >= 5:
                 unlocked = True
+            elif achievement.condition == "use_20_hints" and condition_type == "hint" and self.hints_used >= 20:
+                unlocked = True
             elif achievement.condition == "score_50_time_attack" and condition_type == "time_attack_score" and value >= 50:
                 unlocked = True
             elif achievement.condition == "score_100_time_attack" and condition_type == "time_attack_score" and value >= 100:
+                unlocked = True
+            elif achievement.condition == "complete_10_in_time_attack" and condition_type == "time_attack_completed" and value >= 10:
                 unlocked = True
             elif achievement.condition == "total_score_100" and condition_type == "score" and self.score >= 100:
                 unlocked = True
             elif achievement.condition == "total_score_500" and condition_type == "score" and self.score >= 500:
                 unlocked = True
+            elif achievement.condition == "total_score_1000" and condition_type == "score" and self.score >= 1000:
+                unlocked = True
             elif achievement.condition == "reach_level_10" and condition_type == "level" and self.current_level >= 10:
                 unlocked = True
             elif achievement.condition == "reach_level_20" and condition_type == "level" and self.current_level >= 20:
                 unlocked = True
+            elif achievement.condition == "reach_level_30" and condition_type == "level" and self.current_level >= 30:
+                unlocked = True
+            elif achievement.condition == "reach_level_50" and condition_type == "level" and self.current_level >= 50:
+                unlocked = True
             elif achievement.condition == "perfect_level_completion" and condition_type == "perfect_level":
+                unlocked = True
+            elif achievement.condition == "cumulative_5_perfect_levels" and condition_type == "perfect_level" and self.perfect_levels_count >= 5:
+                unlocked = True
+            elif achievement.condition == "complete_50_challenges" and condition_type == "complete_challenge" and self.challenges_completed >= 50:
+                unlocked = True
+            elif achievement.condition == "complete_100_challenges" and condition_type == "complete_challenge" and self.challenges_completed >= 100:
+                unlocked = True
+            elif achievement.condition == "unlock_10_achievements" and condition_type == "unlock_achievement" and len(self.unlocked_achievements) >= 10:
                 unlocked = True
             elif achievement.condition == "complete_all_levels" and condition_type == "all_levels":
                 unlocked = True
@@ -79,6 +100,9 @@ class GameEngine:
                 self.unlocked_achievements.add(achievement.id)
                 print_color(f"\n🏆 解锁成就: {achievement.name} - {achievement.description} 🏆", Colors.BOLD + Colors.OKGREEN)
                 self.save_progress()
+                # Check for collector achievement after unlocking one
+                if achievement.id != "collector":
+                    self.check_achievement("unlock_achievement")
 
     def clear_progress(self):
         self.current_level = 1
@@ -86,6 +110,7 @@ class GameEngine:
         self.unlocked_achievements = set()
         self.challenges_completed = 0
         self.hints_used = 0
+        self.perfect_levels_count = 0
         self.save_progress()
         print_success("进度已清除！")
 
@@ -215,6 +240,7 @@ class GameEngine:
         print_color(f"🎯 完成挑战数: {completed_count}", Colors.OKCYAN)
 
         self.check_achievement("time_attack_score", score)
+        self.check_achievement("time_attack_completed", completed_count)
 
         input("\n按回车键返回主菜单...")
 
@@ -537,6 +563,7 @@ class GameEngine:
 
         # Check for perfect level completion
         if self.errors_in_current_level == 0:
+            self.perfect_levels_count += 1
             self.check_achievement("perfect_level")
 
         # Check for level reach achievements

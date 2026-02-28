@@ -31,7 +31,16 @@ ACHIEVEMENTS = [
     Achievement("score_500", "五百达成", "总得分达到 500 分", "total_score_500"),
     Achievement("level_10", "渐入佳境", "达到第 10 关", "reach_level_10"),
     Achievement("level_20", "身经百战", "达到第 20 关", "reach_level_20"),
-    Achievement("perfect_level", "完美无瑕", "不犯错完成一个关卡", "perfect_level_completion")
+    Achievement("level_30", "登堂入室", "达到第 30 关", "reach_level_30"),
+    Achievement("level_50", "一代宗师", "达到第 50 关", "reach_level_50"),
+    Achievement("perfect_level", "完美无瑕", "不犯错完成一个关卡", "perfect_level_completion"),
+    Achievement("perfectionist", "完美主义者", "累计获得 5 次完美通关", "cumulative_5_perfect_levels"),
+    Achievement("diligent_learner", "勤学苦练", "累计完成 50 个挑战", "complete_50_challenges"),
+    Achievement("terminal_geek", "终端极客", "累计完成 100 个挑战", "complete_100_challenges"),
+    Achievement("encyclopedia", "百科全书", "累计使用 20 次提示", "use_20_hints"),
+    Achievement("fast_learner", "速战速决", "在限时模式中单次完成 10 个挑战", "complete_10_in_time_attack"),
+    Achievement("score_1000", "千分巨擘", "总得分达到 1000 分", "total_score_1000"),
+    Achievement("collector", "勋章收藏家", "解锁 10 个成就", "unlock_10_achievements")
 ]
 
 # 关卡数据

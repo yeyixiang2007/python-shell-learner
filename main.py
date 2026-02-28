@@ -39,6 +39,7 @@ def view_progress(engine):
     print_color(f"👤 当前关卡: {engine.current_level}", Colors.OKCYAN)
     print_color(f"💰 当前总分: {engine.score}", Colors.WARNING)
     print_color(f"🔥 已完成挑战: {engine.challenges_completed}", Colors.OKGREEN)
+    print_color(f"✨ 完美通关数: {engine.perfect_levels_count}", Colors.HEADER)
 
     print_header("🏆 成就勋章墙 🏆")
     for ach in ACHIEVEMENTS:
