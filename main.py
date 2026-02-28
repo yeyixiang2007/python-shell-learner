@@ -77,10 +77,8 @@ def main():
                     if not lvl_input: continue
                     lvl = int(lvl_input)
                     if lvl in LEVELS:
-                        engine.current_level = lvl
-                        engine.is_running = True
-                        while engine.is_running:
-                            engine.start_level(mode='story')
+                        # 单关练习模式：不更改任何持久化进度
+                        engine.start_level(level_id=lvl, mode='single')
                     else:
                         print_error("无效的关卡 ID！")
                         input("按回车键继续...")

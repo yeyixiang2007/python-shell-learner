@@ -18,6 +18,8 @@ class GameEngine:
         self.challenges_completed = 0
         self.errors_in_current_level = 0
         self.perfect_levels_count = 0
+        self._suspend_persistence = False
+        self._snapshot = None
         self.load_progress()
 
 
@@ -37,6 +39,8 @@ class GameEngine:
 
     def save_progress(self):
         try:
+            if self._suspend_persistence:
+                return
             with open("progress.json", "w") as f:
                 json.dump({
                     "level": self.current_level,
@@ -125,6 +129,17 @@ class GameEngine:
 
     def start_level(self, level_id=None, mode='story'):
         self.mode = mode
+        # Practice session snapshot (non-persistent)
+        if self.mode == 'single' and self._snapshot is None:
+            self._snapshot = {
+                "level": self.current_level,
+                "score": self.score,
+                "achievements": set(self.unlocked_achievements),
+                "challenges_completed": self.challenges_completed,
+                "hints_used": self.hints_used,
+                "perfect_levels_count": self.perfect_levels_count
+            }
+            self._suspend_persistence = True
         if level_id:
             self.current_level = level_id
 
@@ -142,6 +157,16 @@ class GameEngine:
         self.current_challenge_index = 0
         self.errors_in_current_level = 0 # Reset error count for the new level
         self.play_challenge()
+        # Restore snapshot after single level practice (whether finished or exited)
+        if self.mode == 'single' and self._snapshot is not None:
+            self.current_level = self._snapshot["level"]
+            self.score = self._snapshot["score"]
+            self.unlocked_achievements = set(self._snapshot["achievements"])
+            self.challenges_completed = self._snapshot["challenges_completed"]
+            self.hints_used = self._snapshot["hints_used"]
+            self.perfect_levels_count = self._snapshot["perfect_levels_count"]
+            self._snapshot = None
+            self._suspend_persistence = False
 
     def play_challenge(self):
         challenge = self.get_current_challenge()
